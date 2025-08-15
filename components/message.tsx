@@ -15,6 +15,7 @@ import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
+import { ChartRenderer } from './chart-renderer';
 
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
@@ -132,6 +133,28 @@ const PurePreviewMessage = ({
 
               if (type === 'text') {
                 if (mode === 'view') {
+                  // 차트 데이터인지 확인
+                  const isChartData = (() => {
+                    try {
+                      const trimmed = part.text.trim();
+                      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                        const parsed = JSON.parse(trimmed);
+                        return (
+                          parsed.type &&
+                          parsed.data &&
+                          Array.isArray(parsed.data)
+                        );
+                      }
+                      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                        const parsed = JSON.parse(trimmed);
+                        return Array.isArray(parsed) && parsed.length > 0;
+                      }
+                      return false;
+                    } catch {
+                      return false;
+                    }
+                  })();
+
                   return (
                     <div key={key} className="flex flex-row gap-2 items-start">
                       {message.role === 'user' && !isReadonly && (
@@ -159,7 +182,11 @@ const PurePreviewMessage = ({
                             message.role === 'user',
                         })}
                       >
-                        <Markdown>{sanitizeText(part.text)}</Markdown>
+                        {isChartData ? (
+                          <ChartRenderer content={part.text} />
+                        ) : (
+                          <Markdown>{sanitizeText(part.text)}</Markdown>
+                        )}
                       </div>
                     </div>
                   );
@@ -218,43 +245,38 @@ const PurePreviewMessage = ({
               if (type === 'tool-createDocument') {
                 const { toolCallId, state } = part;
 
-                console.log('🔧 Rendering createDocument tool:', {
-                  type,
-                  toolCallId,
-                  state,
-                  part,
-                });
+                if (state === 'input-available') {
+                  const { input } = part;
+                  return (
+                    <div key={toolCallId}>
+                      <DocumentPreview isReadonly={isReadonly} args={input} />
+                    </div>
+                  );
+                }
 
-                return (
-                  <Tool
-                    key={toolCallId}
-                    defaultOpen={state === 'output-available'}
-                  >
-                    <ToolHeader type={type} state={state} />
-                    <ToolContent>
-                      <ToolInput input={part.input} />
-                      <ToolOutput
-                        output={
-                          state === 'output-available' ? (
-                            'error' in part.output ? (
-                              <div className="text-red-500 p-2 border rounded">
-                                Error: {String(part.output.error)}
-                              </div>
-                            ) : (
-                              <DocumentPreview
-                                isReadonly={isReadonly}
-                                result={part.output}
-                              />
-                            )
-                          ) : undefined
-                        }
-                        errorText={
-                          'errorText' in part ? part.errorText : undefined
-                        }
+                if (state === 'output-available') {
+                  const { output } = part;
+
+                  if ('error' in output) {
+                    return (
+                      <div
+                        key={toolCallId}
+                        className="text-red-500 p-2 border rounded"
+                      >
+                        Error: {String(output.error)}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={toolCallId}>
+                      <DocumentPreview
+                        isReadonly={isReadonly}
+                        result={output}
                       />
-                    </ToolContent>
-                  </Tool>
-                );
+                    </div>
+                  );
+                }
               }
 
               if (type === 'tool-updateDocument') {
@@ -327,6 +349,38 @@ const PurePreviewMessage = ({
                     </ToolContent>
                   </Tool>
                 );
+              }
+
+              if (type === 'tool-createChart') {
+                const { toolCallId, state } = part;
+
+                if (state === 'output-available') {
+                  const { output } = part;
+
+                  if ('error' in output) {
+                    return (
+                      <div
+                        key={toolCallId}
+                        className="text-red-500 p-2 border rounded"
+                      >
+                        Error: {String(output.error)}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={toolCallId} className="p-4">
+                      <div className="mb-4">
+                        <p className="text-sm text-muted-foreground">
+                          {output.content}
+                        </p>
+                      </div>
+                      {output.chartData && (
+                        <ChartRenderer content={output.chartData} />
+                      )}
+                    </div>
+                  );
+                }
               }
 
               // Handle dynamic-tool type from MCP
