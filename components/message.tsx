@@ -15,10 +15,22 @@ import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
-import { MessageReasoning } from './message-reasoning';
+
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from '@/components/ai-elements/tool';
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from '@/components/ai-elements/reasoning';
 
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
@@ -99,17 +111,22 @@ const PurePreviewMessage = ({
               </div>
             )}
 
-            {message.parts?.map((part, index) => {
+            {message.parts?.map((part: any, index) => {
               const { type } = part;
               const key = `message-${message.id}-part-${index}`;
 
+              console.log('🔧 Rendering part:', { type, key, part });
+
               if (type === 'reasoning' && part.text?.trim().length > 0) {
                 return (
-                  <MessageReasoning
+                  <Reasoning
                     key={key}
-                    isLoading={isLoading}
-                    reasoning={part.text}
-                  />
+                    className="w-full"
+                    isStreaming={isLoading}
+                  >
+                    <ReasoningTrigger />
+                    <ReasoningContent>{part.text}</ReasoningContent>
+                  </Reasoning>
                 );
               }
 
@@ -168,144 +185,199 @@ const PurePreviewMessage = ({
               if (type === 'tool-getWeather') {
                 const { toolCallId, state } = part;
 
-                if (state === 'input-available') {
-                  return (
-                    <div key={toolCallId} className="skeleton">
-                      <Weather />
-                    </div>
-                  );
-                }
+                console.log('🔧 Rendering getWeather tool:', {
+                  type,
+                  toolCallId,
+                  state,
+                  part,
+                });
 
-                if (state === 'output-available') {
-                  const { output } = part;
-                  return (
-                    <div key={toolCallId}>
-                      <Weather weatherAtLocation={output} />
-                    </div>
-                  );
-                }
+                return (
+                  <Tool
+                    key={toolCallId}
+                    defaultOpen={state === 'output-available'}
+                  >
+                    <ToolHeader type={type} state={state} />
+                    <ToolContent>
+                      <ToolInput input={part.input} />
+                      <ToolOutput
+                        output={
+                          state === 'output-available' ? (
+                            <Weather weatherAtLocation={part.output} />
+                          ) : undefined
+                        }
+                        errorText={
+                          'errorText' in part ? part.errorText : undefined
+                        }
+                      />
+                    </ToolContent>
+                  </Tool>
+                );
               }
 
               if (type === 'tool-createDocument') {
                 const { toolCallId, state } = part;
 
-                if (state === 'input-available') {
-                  const { input } = part;
-                  return (
-                    <div key={toolCallId}>
-                      <DocumentPreview isReadonly={isReadonly} args={input} />
-                    </div>
-                  );
-                }
+                console.log('🔧 Rendering createDocument tool:', {
+                  type,
+                  toolCallId,
+                  state,
+                  part,
+                });
 
-                if (state === 'output-available') {
-                  const { output } = part;
-
-                  if ('error' in output) {
-                    return (
-                      <div
-                        key={toolCallId}
-                        className="text-red-500 p-2 border rounded"
-                      >
-                        Error: {String(output.error)}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div key={toolCallId}>
-                      <DocumentPreview
-                        isReadonly={isReadonly}
-                        result={output}
+                return (
+                  <Tool
+                    key={toolCallId}
+                    defaultOpen={state === 'output-available'}
+                  >
+                    <ToolHeader type={type} state={state} />
+                    <ToolContent>
+                      <ToolInput input={part.input} />
+                      <ToolOutput
+                        output={
+                          state === 'output-available' ? (
+                            'error' in part.output ? (
+                              <div className="text-red-500 p-2 border rounded">
+                                Error: {String(part.output.error)}
+                              </div>
+                            ) : (
+                              <DocumentPreview
+                                isReadonly={isReadonly}
+                                result={part.output}
+                              />
+                            )
+                          ) : undefined
+                        }
+                        errorText={
+                          'errorText' in part ? part.errorText : undefined
+                        }
                       />
-                    </div>
-                  );
-                }
+                    </ToolContent>
+                  </Tool>
+                );
               }
 
               if (type === 'tool-updateDocument') {
                 const { toolCallId, state } = part;
 
-                if (state === 'input-available') {
-                  const { input } = part;
-
-                  return (
-                    <div key={toolCallId}>
-                      <DocumentToolCall
-                        type="update"
-                        args={input}
-                        isReadonly={isReadonly}
+                return (
+                  <Tool
+                    key={toolCallId}
+                    defaultOpen={state === 'output-available'}
+                  >
+                    <ToolHeader type={type} state={state} />
+                    <ToolContent>
+                      <ToolInput input={part.input} />
+                      <ToolOutput
+                        output={
+                          state === 'output-available' ? (
+                            'error' in part.output ? (
+                              <div className="text-red-500 p-2 border rounded">
+                                Error: {String(part.output.error)}
+                              </div>
+                            ) : (
+                              <DocumentToolResult
+                                type="update"
+                                result={part.output}
+                                isReadonly={isReadonly}
+                              />
+                            )
+                          ) : undefined
+                        }
+                        errorText={
+                          'errorText' in part ? part.errorText : undefined
+                        }
                       />
-                    </div>
-                  );
-                }
-
-                if (state === 'output-available') {
-                  const { output } = part;
-
-                  if ('error' in output) {
-                    return (
-                      <div
-                        key={toolCallId}
-                        className="text-red-500 p-2 border rounded"
-                      >
-                        Error: {String(output.error)}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div key={toolCallId}>
-                      <DocumentToolResult
-                        type="update"
-                        result={output}
-                        isReadonly={isReadonly}
-                      />
-                    </div>
-                  );
-                }
+                    </ToolContent>
+                  </Tool>
+                );
               }
 
               if (type === 'tool-requestSuggestions') {
                 const { toolCallId, state } = part;
 
-                if (state === 'input-available') {
-                  const { input } = part;
-                  return (
-                    <div key={toolCallId}>
-                      <DocumentToolCall
-                        type="request-suggestions"
-                        args={input}
-                        isReadonly={isReadonly}
+                return (
+                  <Tool
+                    key={toolCallId}
+                    defaultOpen={state === 'output-available'}
+                  >
+                    <ToolHeader type={type} state={state} />
+                    <ToolContent>
+                      <ToolInput input={part.input} />
+                      <ToolOutput
+                        output={
+                          state === 'output-available' ? (
+                            'error' in part.output ? (
+                              <div className="text-red-500 p-2 border rounded">
+                                Error: {String(part.output.error)}
+                              </div>
+                            ) : (
+                              <DocumentToolResult
+                                type="request-suggestions"
+                                result={part.output}
+                                isReadonly={isReadonly}
+                              />
+                            )
+                          ) : undefined
+                        }
+                        errorText={
+                          'errorText' in part ? part.errorText : undefined
+                        }
                       />
-                    </div>
-                  );
-                }
+                    </ToolContent>
+                  </Tool>
+                );
+              }
 
-                if (state === 'output-available') {
-                  const { output } = part;
+              // Handle dynamic-tool type from MCP
+              if (type.includes('tool')) {
+                const { toolCallId, state, toolName } = part as any;
 
-                  if ('error' in output) {
-                    return (
-                      <div
-                        key={toolCallId}
-                        className="text-red-500 p-2 border rounded"
-                      >
-                        Error: {String(output.error)}
-                      </div>
-                    );
-                  }
+                console.log('🔧 Rendering dynamic-tool:', {
+                  type,
+                  toolName,
+                  toolCallId,
+                  state,
+                  part,
+                });
 
-                  return (
-                    <div key={toolCallId}>
-                      <DocumentToolResult
-                        type="request-suggestions"
-                        result={output}
-                        isReadonly={isReadonly}
+                return (
+                  <Tool
+                    key={toolCallId}
+                    defaultOpen={state === 'output-available'}
+                  >
+                    <ToolHeader type={type || 'dynamic-tool'} state={state} />
+                    <ToolContent>
+                      <ToolInput input={(part as any).input} />
+                      <ToolOutput
+                        output={
+                          state === 'output-available' ? (
+                            'error' in (part as any).output ? (
+                              <div className="text-red-500 p-2 border rounded">
+                                Error: {String((part as any).output.error)}
+                              </div>
+                            ) : (
+                              <div className="p-4">
+                                <pre className="text-sm bg-muted p-3 rounded overflow-auto">
+                                  {JSON.stringify(
+                                    (part as any).output,
+                                    null,
+                                    2,
+                                  )}
+                                </pre>
+                              </div>
+                            )
+                          ) : undefined
+                        }
+                        errorText={
+                          'errorText' in part
+                            ? (part as any).errorText
+                            : undefined
+                        }
                       />
-                    </div>
-                  );
-                }
+                    </ToolContent>
+                  </Tool>
+                );
               }
             })}
 

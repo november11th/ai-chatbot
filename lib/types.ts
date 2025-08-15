@@ -28,6 +28,8 @@ export type ChatTools = {
   createDocument: createDocumentTool;
   updateDocument: updateDocumentTool;
   requestSuggestions: requestSuggestionsTool;
+  // Add support for dynamic tools from MCP
+  [key: string]: any;
 };
 
 export type CustomUIDataTypes = {
@@ -42,6 +44,8 @@ export type CustomUIDataTypes = {
   kind: ArtifactKind;
   clear: null;
   finish: null;
+  // Add support for dynamic tools from MCP
+  'dynamic-tool': any;
 };
 
 export type ChatMessage = UIMessage<
