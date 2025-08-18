@@ -6,6 +6,7 @@ import {
   stepCountIs,
   streamText,
   experimental_createMCPClient,
+  tool,
 } from 'ai';
 import { auth, type UserType } from '@/app/(auth)/auth';
 import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
@@ -40,6 +41,8 @@ import type { ChatMessage } from '@/lib/types';
 import type { ChatModel } from '@/lib/ai/models';
 import type { VisibilityType } from '@/components/visibility-selector';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
+import { xai } from '@ai-sdk/xai';
+import z from 'zod';
 
 export const maxDuration = 60;
 
@@ -209,16 +212,17 @@ export async function POST(request: Request) {
     });
     const subwayTools = await httpClient.tools();
 
-    console.log('🚇 MCP Tools received:', JSON.stringify(subwayTools, null, 2));
+    // console.log('🚇 MCP Tools received:', JSON.stringify(subwayTools, null, 2));
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
         console.log('🔄 Executing AI stream with model:', selectedChatModel);
         const result = streamText({
-          model: myProvider.languageModel(selectedChatModel),
+          // model: myProvider.languageModel(selectedChatModel),
+          model: xai('grok-3-mini'),
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages: convertToModelMessages(uiMessages),
-          stopWhen: stepCountIs(5),
+          stopWhen: stepCountIs(10),
           // experimental_activeTools:
           //   selectedChatModel === 'chat-model-reasoning'
           //     ? []
@@ -239,6 +243,17 @@ export async function POST(request: Request) {
               dataStream,
             }),
             createChart: createChart({ session, dataStream }),
+            navigateToPuzzleWebsiteURL: tool({
+              name: 'navigateToPuzzleWebsite',
+              description: 'Navigate to the puzzle website',
+              inputSchema: z.object({}),
+              execute: async () => {
+                return {
+                  type: 'navigateToPuzzleWebsite',
+                  url: 'https://puzzle.geovision.co.kr',
+                };
+              },
+            }),
             ...subwayTools,
           },
           experimental_telemetry: {

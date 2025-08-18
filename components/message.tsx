@@ -16,6 +16,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
 import { ChartRenderer } from './chart-renderer';
+import {
+  WebPreview,
+  WebPreviewNavigation,
+  WebPreviewUrl,
+  WebPreviewBody,
+} from '@/components/ai-elements/web-preview';
 
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
@@ -349,6 +355,26 @@ const PurePreviewMessage = ({
                     </ToolContent>
                   </Tool>
                 );
+              }
+
+              if (type === 'tool-navigateToPuzzleWebsiteURL') {
+                const { toolCallId, state } = part;
+                if (state === 'output-available') {
+                  const { output } = part;
+                  return (
+                    <div key={toolCallId}>
+                      <WebPreview
+                        defaultUrl={output.url}
+                        style={{ height: '400px' }}
+                      >
+                        <WebPreviewNavigation>
+                          <WebPreviewUrl />
+                        </WebPreviewNavigation>
+                        <WebPreviewBody src={output.url} />
+                      </WebPreview>
+                    </div>
+                  );
+                }
               }
 
               if (type === 'tool-createChart') {
