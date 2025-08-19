@@ -279,7 +279,7 @@ function PureArtifact({
             />
           )}
 
-          {!isMobile && (
+          {/* {!isMobile && (
             <motion.div
               className="relative w-[400px] bg-muted dark:bg-background h-dvh shrink-0"
               initial={{ opacity: 0, x: 10, scale: 1 }}
@@ -342,7 +342,7 @@ function PureArtifact({
                 </form>
               </div>
             </motion.div>
-          )}
+          )} */}
 
           <motion.div
             className="fixed dark:bg-muted bg-background h-dvh flex flex-col overflow-y-scroll md:border-l dark:border-zinc-700 border-zinc-200"
@@ -350,16 +350,20 @@ function PureArtifact({
               isMobile
                 ? {
                     opacity: 1,
-                    x: artifact.boundingBox.left,
-                    y: artifact.boundingBox.top,
+                    // x: artifact.boundingBox.left,
+                    // y: artifact.boundingBox.top,
+                    x: 0,
+                    y: 0,
                     height: artifact.boundingBox.height,
                     width: artifact.boundingBox.width,
                     borderRadius: 50,
                   }
                 : {
                     opacity: 1,
-                    x: artifact.boundingBox.left,
-                    y: artifact.boundingBox.top,
+                    // x: artifact.boundingBox.left,
+                    // y: artifact.boundingBox.top,
+                    x: 0,
+                    y: 0,
                     height: artifact.boundingBox.height,
                     width: artifact.boundingBox.width,
                     borderRadius: 50,
@@ -384,12 +388,13 @@ function PureArtifact({
                   }
                 : {
                     opacity: 1,
-                    x: 400,
+                    x: 0,
                     y: 0,
                     height: windowHeight,
-                    width: windowWidth
-                      ? windowWidth - 400
-                      : 'calc(100dvw-400px)',
+                    // width: windowWidth
+                    //   ? windowWidth - 400
+                    //   : 'calc(100dvw-400px)',
+                    width: windowWidth,
                     borderRadius: 0,
                     transition: {
                       delay: 0,

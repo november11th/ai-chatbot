@@ -16,7 +16,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
       system:
-        'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',
+        '사용자의 질문을 배경으로 하여 해당 주제에 대한 문서를 작성하세요. 마크다운을 지원하며, 적절한 곳에 제목을 사용하세요. 사용자의 질문에 대한 답변을 포함하여 포괄적이고 유용한 문서를 만들어주세요.',
       experimental_transform: smoothStream({ chunking: 'word' }),
       prompt: title,
     });
@@ -26,7 +26,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
       const { type } = delta;
       chunkCount++;
 
-      if (type === 'text') {
+      if (type === 'text-delta') {
         const { text } = delta;
         draftContent += text;
 
@@ -88,7 +88,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
       const { type } = delta;
       chunkCount++;
 
-      if (type === 'text') {
+      if (type === 'text-delta') {
         const { text } = delta;
         draftContent += text;
 

@@ -43,6 +43,7 @@ import type { VisibilityType } from '@/components/visibility-selector';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
 import { xai } from '@ai-sdk/xai';
 import z from 'zod';
+import { openai } from '@ai-sdk/openai';
 
 export const maxDuration = 60;
 
@@ -219,7 +220,8 @@ export async function POST(request: Request) {
         console.log('🔄 Executing AI stream with model:', selectedChatModel);
         const result = streamText({
           // model: myProvider.languageModel(selectedChatModel),
-          model: xai('grok-3-mini'),
+          // model: xai('grok-3-mini'),
+          model: openai('gpt-5'),
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(10),
@@ -246,11 +248,15 @@ export async function POST(request: Request) {
             navigateToPuzzleWebsiteURL: tool({
               name: 'navigateToPuzzleWebsite',
               description: 'Navigate to the puzzle website',
-              inputSchema: z.object({}),
-              execute: async () => {
+              inputSchema: z.object({
+                repLat: z.number(),
+                repLng: z.number(),
+                mainStationCode: z.string().describe('station code'),
+              }),
+              execute: async ({ repLat, repLng, mainStationCode }) => {
                 return {
                   type: 'navigateToPuzzleWebsite',
-                  url: 'https://puzzle.geovision.co.kr',
+                  url: `https://puzzle.geovision.co.kr/map?lat=${repLat}&lng=${repLng}&zoom=16&poiId=${mainStationCode}&poiType=subway`,
                 };
               },
             }),
@@ -260,9 +266,16 @@ export async function POST(request: Request) {
             isEnabled: isProductionEnvironment,
             functionId: 'stream-text',
           },
+          providerOptions: {
+            openai: {
+              reasoningEffort: 'low',
+              reasoningSummary: 'auto',
+            },
+          },
         });
 
         console.log('🔄 AI stream created, consuming...');
+        console.log('🔄 AI stream result:', result);
         result.consumeStream();
 
         dataStream.merge(

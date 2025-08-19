@@ -365,7 +365,7 @@ const PurePreviewMessage = ({
                     <div key={toolCallId}>
                       <WebPreview
                         defaultUrl={output.url}
-                        style={{ height: '400px' }}
+                        style={{ height: '600px' }}
                       >
                         <WebPreviewNavigation>
                           <WebPreviewUrl />
