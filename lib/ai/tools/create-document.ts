@@ -11,9 +11,21 @@ import type { ChatMessage } from '@/lib/types';
 interface CreateDocumentProps {
   session: Session;
   dataStream: UIMessageStreamWriter<ChatMessage>;
+  chatId?: string;
+  // 추가 컨텍스트 정보
+  context?: {
+    userMessage?: string;
+    recentMessages?: Array<{ role: string; content: string }>;
+    systemPrompt?: string;
+  };
 }
 
-export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
+export const createDocument = ({
+  session,
+  dataStream,
+  chatId,
+  context,
+}: CreateDocumentProps) =>
   tool({
     description:
       'Create a document for a writing or content creation activities. This tool will call other functions that will generate the contents of the document based on the title and kind.',
@@ -60,8 +72,10 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
       await documentHandler.onCreateDocument({
         id,
         title,
+        chatId,
         dataStream,
         session,
+        context, // 컨텍스트 정보 전달
       });
 
       dataStream.write({ type: 'data-finish', data: null, transient: true });

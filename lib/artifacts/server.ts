@@ -21,8 +21,15 @@ export interface SaveDocumentProps {
 export interface CreateDocumentCallbackProps {
   id: string;
   title: string;
+  chatId?: string;
   dataStream: UIMessageStreamWriter<ChatMessage>;
   session: Session;
+  // 추가 컨텍스트 정보
+  context?: {
+    userMessage?: string;
+    recentMessages?: Array<{ role: string; content: string }>;
+    systemPrompt?: string;
+  };
 }
 
 export interface UpdateDocumentCallbackProps {
@@ -49,8 +56,10 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
       const draftContent = await config.onCreateDocument({
         id: args.id,
         title: args.title,
+        chatId: args.chatId,
         dataStream: args.dataStream,
         session: args.session,
+        context: args.context, // context 전달
       });
 
       if (args.session?.user?.id) {

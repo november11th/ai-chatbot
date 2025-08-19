@@ -238,7 +238,23 @@ export async function POST(request: Request) {
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
             getWeather: getWeather,
-            createDocument: createDocument({ session, dataStream }),
+            createDocument: createDocument({
+              session,
+              dataStream,
+              chatId: id,
+              context: {
+                userMessage:
+                  message.parts.find((part) => part.type === 'text')?.text ||
+                  '',
+                recentMessages: uiMessages.slice(-5).map((msg) => ({
+                  role: msg.role,
+                  content: msg.parts
+                    .map((part) => (part.type === 'text' ? part.text : ''))
+                    .join(' '),
+                })),
+                systemPrompt: systemPrompt({ selectedChatModel, requestHints }),
+              },
+            }),
             updateDocument: updateDocument({ session, dataStream }),
             requestSuggestions: requestSuggestions({
               session,
