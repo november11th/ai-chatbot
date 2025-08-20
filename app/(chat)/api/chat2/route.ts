@@ -1,7 +1,8 @@
 import { openai } from '@ai-sdk/openai';
-import { xai } from '@ai-sdk/xai';
+import { streamText, type UIMessage } from 'ai';
+import { initializeOTEL } from 'langsmith/experimental/otel/setup';
 
-import { streamText, UIMessage, convertToModelMessages } from 'ai';
+const { DEFAULT_LANGSMITH_SPAN_PROCESSOR } = initializeOTEL();
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -10,12 +11,16 @@ export async function POST(req: Request) {
   const { model, messages }: { messages: UIMessage[]; model: string } =
     await req.json();
 
-  const result = streamText({
-    model: xai('grok-3-mini'),
-    messages: convertToModelMessages(messages),
-  });
-
-  return result.toUIMessageStreamResponse({
-    sendReasoning: true,
-  });
+  try {
+    const result = await streamText({
+      model: openai('gpt-4.1-nano'),
+      prompt: 'Write a vegetarian lasagna recipe for 4 people.',
+      experimental_telemetry: { isEnabled: true },
+    });
+    return result.toUIMessageStreamResponse({
+      sendReasoning: true,
+    });
+  } finally {
+    await DEFAULT_LANGSMITH_SPAN_PROCESSOR.shutdown();
+  }
 }

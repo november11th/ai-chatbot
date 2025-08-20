@@ -72,6 +72,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
       prompt: chatContext
         ? `제목: ${title}\n\n이전 대화 내용:\n${chatContext}\n\n위 내용을 바탕으로 문서를 작성해주세요.`
         : title,
+      experimental_telemetry: { isEnabled: true },
     });
 
     console.log(`[TEXT] AI stream initialized, starting to process deltas...`);
@@ -134,6 +135,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
           },
         },
       },
+      experimental_telemetry: { isEnabled: true },
     });
 
     console.log(`[TEXT] AI update stream initialized, processing deltas...`);

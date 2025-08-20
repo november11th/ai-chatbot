@@ -44,7 +44,9 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { xai } from '@ai-sdk/xai';
 import z from 'zod';
 import { openai } from '@ai-sdk/openai';
+import { initializeOTEL } from 'langsmith/experimental/otel/setup';
 
+const { DEFAULT_LANGSMITH_SPAN_PROCESSOR } = initializeOTEL();
 export const maxDuration = 60;
 
 let globalStreamContext: ResumableStreamContext | null = null;
@@ -213,93 +215,115 @@ export async function POST(request: Request) {
     });
     const subwayTools = await httpClient.tools();
 
+    const academyHttpTransport = new StreamableHTTPClientTransport(
+      new URL(
+        'https://mcp.data-puzzle.com/academy/mcp?appKey=d43SHnUUxrao4bAHBWgln4U6VWI50vudahXbGK8Q',
+      ),
+    );
+    const academyHttpClient = await experimental_createMCPClient({
+      transport: academyHttpTransport,
+    });
+    const academyTools = await academyHttpClient.tools();
+
     // console.log('🚇 MCP Tools received:', JSON.stringify(subwayTools, null, 2));
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
-        console.log('🔄 Executing AI stream with model:', selectedChatModel);
-        const result = streamText({
-          // model: myProvider.languageModel(selectedChatModel),
-          // model: xai('grok-3-mini'),
-          model: openai('gpt-5'),
-          system: systemPrompt({ selectedChatModel, requestHints }),
-          messages: convertToModelMessages(uiMessages),
-          stopWhen: stepCountIs(10),
-          // experimental_activeTools:
-          //   selectedChatModel === 'chat-model-reasoning'
-          //     ? []
-          //       : [
-          //         'getWeather',
-          //         'createDocument',
-          //         'updateDocument',
-          //         'requestSuggestions',
-          //         'subwayTools',
-          //       ],
-          experimental_transform: smoothStream({ chunking: 'word' }),
-          tools: {
-            getWeather: getWeather,
-            createDocument: createDocument({
-              session,
-              dataStream,
-              chatId: id,
-              context: {
-                userMessage:
-                  message.parts.find((part) => part.type === 'text')?.text ||
-                  '',
-                recentMessages: uiMessages.slice(-5).map((msg) => ({
-                  role: msg.role,
-                  content: msg.parts
-                    .map((part) => (part.type === 'text' ? part.text : ''))
-                    .join(' '),
-                })),
-                systemPrompt: systemPrompt({ selectedChatModel, requestHints }),
-              },
-            }),
-            updateDocument: updateDocument({ session, dataStream }),
-            requestSuggestions: requestSuggestions({
-              session,
-              dataStream,
-            }),
-            createChart: createChart({ session, dataStream }),
-            navigateToPuzzleWebsiteURL: tool({
-              name: 'navigateToPuzzleWebsite',
-              description: 'Navigate to the puzzle website',
-              inputSchema: z.object({
-                repLat: z.number(),
-                repLng: z.number(),
-                mainStationCode: z.string().describe('station code'),
+        try {
+          console.log('🔄 Executing AI stream with model:', selectedChatModel);
+          const result = streamText({
+            // model: myProvider.languageModel(selectedChatModel),
+            // model: xai('grok-3-mini'),
+            model: openai('gpt-5'),
+            system: systemPrompt({ selectedChatModel, requestHints }),
+            messages: convertToModelMessages(uiMessages),
+            stopWhen: stepCountIs(10),
+            // experimental_activeTools:
+            //   selectedChatModel === 'chat-model-reasoning'
+            //     ? []
+            //       : [
+            //         'getWeather',
+            //         'createDocument',
+            //         'updateDocument',
+            //         'requestSuggestions',
+            //         'subwayTools',
+            //       ],
+            experimental_transform: smoothStream({ chunking: 'word' }),
+            tools: {
+              getWeather: getWeather,
+              createDocument: createDocument({
+                session,
+                dataStream,
+                chatId: id,
+                context: {
+                  userMessage:
+                    message.parts.find((part) => part.type === 'text')?.text ||
+                    '',
+                  recentMessages: uiMessages.slice(-5).map((msg) => ({
+                    role: msg.role,
+                    content: msg.parts
+                      .map((part) => (part.type === 'text' ? part.text : ''))
+                      .join(' '),
+                  })),
+                  systemPrompt: systemPrompt({
+                    selectedChatModel,
+                    requestHints,
+                  }),
+                },
               }),
-              execute: async ({ repLat, repLng, mainStationCode }) => {
-                return {
-                  type: 'navigateToPuzzleWebsite',
-                  url: `https://puzzle.geovision.co.kr/map?lat=${repLat}&lng=${repLng}&zoom=16&poiId=${mainStationCode}&poiType=subway`,
-                };
-              },
-            }),
-            ...subwayTools,
-          },
-          experimental_telemetry: {
-            isEnabled: isProductionEnvironment,
-            functionId: 'stream-text',
-          },
-          providerOptions: {
-            openai: {
-              reasoningEffort: 'low',
-              reasoningSummary: 'auto',
+              updateDocument: updateDocument({ session, dataStream }),
+              requestSuggestions: requestSuggestions({
+                session,
+                dataStream,
+              }),
+              createChart: createChart({ session, dataStream }),
+              navigateToPuzzleWebsiteURL: tool({
+                name: 'navigateToPuzzleWebsite',
+                description: 'Navigate to the puzzle website',
+                inputSchema: z.object({
+                  repLat: z.number(),
+                  repLng: z.number(),
+                  mainStationCode: z.string().describe('station code'),
+                }),
+                execute: async ({ repLat, repLng, mainStationCode }) => {
+                  return {
+                    type: 'navigateToPuzzleWebsite',
+                    url: `https://puzzle.geovision.co.kr/map?lat=${repLat}&lng=${repLng}&zoom=16&poiId=${mainStationCode}&poiType=subway`,
+                  };
+                },
+              }),
+              ...subwayTools,
+              ...academyTools,
             },
-          },
-        });
+            experimental_telemetry: {
+              isEnabled: true,
+              functionId: 'stream-text',
+            },
+            providerOptions: {
+              openai: {
+                reasoningEffort: 'low',
+                reasoningSummary: 'auto',
+              },
+            },
+          });
 
-        console.log('🔄 AI stream created, consuming...');
-        console.log('🔄 AI stream result:', result);
-        result.consumeStream();
+          console.log('🔄 AI stream created, consuming...');
+          // console.log('🔄 AI stream result:', result);
+          result.consumeStream();
 
-        dataStream.merge(
-          result.toUIMessageStream({
-            sendReasoning: true,
-          }),
-        );
-        console.log('✅ AI stream merged with data stream');
+          dataStream.merge(
+            result.toUIMessageStream({
+              sendReasoning: true,
+            }),
+          );
+          console.log('✅ AI stream merged with data stream');
+        } catch (error) {
+          console.error('❌ Stream error occurred:', error);
+          return 'Oops, an error occurred!';
+        } finally {
+          console.log('🔄 Stream finished');
+          DEFAULT_LANGSMITH_SPAN_PROCESSOR.shutdown();
+        }
       },
       generateId: generateUUID,
       onFinish: async ({ messages }) => {
